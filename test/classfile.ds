@@ -1,0 +1,248 @@
+// http://java.sun.com/docs/books/vmspec/html/ClassFile.doc.html
+
+const uint8 	CONSTANT_Class 			= 7;
+const uint8 	CONSTANT_Fieldref 		= 9;
+const uint8 	CONSTANT_Methodref 		= 10;
+const uint8 	CONSTANT_InterfaceMethodref 	= 11;
+const uint8 	CONSTANT_String 		= 8;
+const uint8 	CONSTANT_Integer 		= 3;
+const uint8 	CONSTANT_Float 			= 4;
+const uint8 	CONSTANT_Long 			= 5;
+const uint8 	CONSTANT_Double 		= 6;
+const uint8 	CONSTANT_NameAndType 		= 12;
+const uint8 	CONSTANT_Utf8 			= 1;
+
+const uint16 	ACC_PUBLIC 			= 0x0001;
+const uint16 	ACC_PRIVATE 			= 0x0002;
+const uint16 	ACC_PROTECTED 			= 0x0004;
+const uint16 	ACC_STATIC 			= 0x0008;
+const uint16 	ACC_FINAL  			= 0x0010;
+const uint16 	ACC_SUPER  			= 0x0020;
+const uint16 	ACC_SYNCHRONIZED	 	= 0x0020;
+const uint16 	ACC_VOLATILE 			= 0x0040;
+const uint16 	ACC_TRANSIENT 			= 0x0080;
+const uint16 	ACC_NATIVE 			= 0x0100;
+const uint16 	ACC_INTERFACE 			= 0x0200;
+const uint16 	ACC_ABSTRACT 			= 0x0400;
+
+ClassFile {
+    uint32 magic = 0xCAFEBABE;
+    uint16 minor_version : minor_version == 3 || minor_version == 0;
+    uint16 major_version : major_version == 45 || major_version == 46 || major_version == 47;
+    uint16 constant_pool_count;	      // number of entries in the constant pool
+    ConstantPoolInfo constant_pool[1..constant_pool_count] :
+      forall _ in constant_pool :
+    	   !(constant_pool[_] is cp_class) || utf8(constant_pool[_].cp_class.name_index)
+    	&& !(constant_pool[_] is cp_string) || utf8(constant_pool[_].cp_string.string_index)
+    	&& !(constant_pool[_] is cp_nameandtype) || utf8(constant_pool[_].cp_nameandtype.name_index)
+    	&& !(constant_pool[_] is cp_nameandtype) || utf8(constant_pool[_].cp_nameandtype.descriptor_index)
+	&& !(constant_pool[_] is cp_fieldref) || clazz(constant_pool[_].cp_fieldref.class_index)
+	&& !(constant_pool[_] is cp_fieldref) || name_and_type(constant_pool[_].cp_fieldref.name_and_type_index)
+	&& !(constant_pool[_] is cp_methodref) || clazz(constant_pool[_].cp_methodref.class_index)
+	&& !(constant_pool[_] is cp_methodref) || name_and_type(constant_pool[_].cp_methodref.name_and_type_index)
+	&& !(constant_pool[_] is cp_interfacemethodref) || clazz(constant_pool[_].cp_interfacemethodref.class_index)
+	&& !(constant_pool[_] is cp_interfacemethodref) || name_and_type(constant_pool[_].cp_interfacemethodref.name_and_type_index)
+	;
+
+    condition clazz(uint16 x) {
+	// NOT: constant_pool[x].tag == CONSTANT_Class;
+	// NOT: constant_pool[x].$choice == ConstantPoolInfo.$cp_class;
+	constant_pool[x] is cp_class;
+    }
+
+    condition utf8(uint16 x) {
+	constant_pool[x] is cp_utf8; 
+    }
+
+    condition name_and_type(uint16 x) {
+	constant_pool[x] is cp_nameandtype;
+    }
+
+    condition compare_utf8(uint16 idx, string str) {
+	constant_pool[idx] is cp_utf8;
+	constant_pool[idx].cp_utf8.bytes.compare_to_string(str);	
+    }
+
+    bitmask uint16 ClassFlags {
+        ACC_PUBLIC, ACC_FINAL, ACC_ABSTRACT, ACC_INTERFACE, ACC_SUPER
+    } access_flags;
+    uint16 this_class : clazz(this_class);
+    uint16 super_class : super_class == 0 || clazz(super_class);
+    uint16 interfaces_count;
+    {
+    	uint16 ifidx : clazz(ifidx);
+    } interfaces[interfaces_count]; 
+    /* also possible is
+    uint16 interfaces[interfaces_count] : 
+       forall i in interfaces : constant_pool[interfaces[i]] is cp_class;
+    */
+    uint16 fields_count;
+    FieldInfo fields[fields_count];
+    uint16 methods_count;
+    MethodInfo methods[methods_count];
+    uint16 attributes_count;
+    AttributeInfo attributes[attributes_count];
+};
+
+union ConstantPoolInfo {
+    /* NB: all these conditions depend on a valid constant_pool[] array in the
+     * containing ClassFile - hence, they can only be checked after the array
+     * has been read, and not now!  BUMMER.
+     * We should automatically flag that or at least recognize it at run-time.
+     */
+    {
+	uint8 tag = CONSTANT_Class;
+	uint16 name_index 	   ; // : ClassFile.utf8(name_index);
+    } cp_class;
+    {
+	uint8 tag = CONSTANT_Fieldref;
+	uint16 class_index 	   ; // : ClassFile.clazz(class_index);
+	uint16 name_and_type_index ; // : ClassFile.name_and_type(name_and_type_index);
+    } cp_fieldref;
+    {
+	uint8 tag = CONSTANT_Methodref;
+	uint16 class_index 	   ; // : ClassFile.clazz(class_index);
+	uint16 name_and_type_index ; // : ClassFile.name_and_type(name_and_type_index);
+    } cp_methodref;
+    {
+	uint8 tag = CONSTANT_InterfaceMethodref;
+	uint16 class_index 	   ; // : ClassFile.clazz(class_index);
+	uint16 name_and_type_index ; // : ClassFile.name_and_type(name_and_type_index);
+    } cp_interfacemethodref;
+    {
+	uint8 tag = CONSTANT_String;
+	uint16 string_index	   ; // : ClassFile.utf8(string_index);
+    } cp_string;
+    {
+	uint8 tag = CONSTANT_Integer;
+	uint32 bytes;
+    } cp_integer;
+    {
+	uint8 tag = CONSTANT_Float;
+	uint32 bytes;
+    } cp_float;
+    {
+	uint8 tag = CONSTANT_Long;
+	uint32 high_bytes;
+	uint32 low_bytes;
+    } cp_long;
+    {
+	uint8 tag = CONSTANT_Double;
+	uint32 high_bytes;
+	uint32 low_bytes;
+    } cp_double;
+    {
+	uint8 tag = CONSTANT_NameAndType;
+	uint16 name_index 		; // : ClassFile.utf8(name_index);
+	uint16 descriptor_index 	; // : ClassFile.utf8(name_index);
+    } cp_nameandtype;
+    Utf8 {
+	uint8 tag = CONSTANT_Utf8;
+	uint16 length;
+	uint8 bytes[length];
+    } cp_utf8;
+};
+
+FieldInfo {
+    bitmask uint16 FieldFlags {
+	ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_FINAL, 
+	ACC_TRANSIENT, ACC_VOLATILE
+    };
+
+    FieldFlags access_flags;
+    uint16 name_index		: ClassFile.utf8(name_index);
+    uint16 descriptor_index	: ClassFile.utf8(name_index);
+    uint16 attributes_count;
+    AttributeInfo attributes[attributes_count];
+};
+
+MethodInfo {
+    bitmask uint16 {
+	ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_FINAL, 
+	ACC_SYNCHRONIZED, ACC_NATIVE, ACC_ABSTRACT
+    } access_flags;
+    uint16 name_index		: ClassFile.utf8(name_index);
+    uint16 descriptor_index	: ClassFile.utf8(name_index);
+    uint16 attributes_count;
+    AttributeInfo attributes[attributes_count];
+};
+
+union AttributeInfo {
+    SourceFile_attribute {
+	uint16 attribute_name_index : 
+	    ClassFile.compare_utf8(attribute_name_index, "SourceFile");
+	uint32 attribute_length = 2;
+	uint16 sourcefile_index;
+    } source_file;
+
+    ConstantValue_attribute {
+	uint16 attribute_name_index :
+	    ClassFile.compare_utf8(attribute_name_index, "ConstantValue");
+	uint32 attribute_length = 2;
+	uint16 constantvalue_index;
+    } constant_value;
+
+    Code_attribute {
+	uint16 attribute_name_index :
+	    ClassFile.compare_utf8(attribute_name_index, "Code");
+	uint32 attribute_length;
+	uint16 max_stack;
+	uint16 max_locals;
+	uint32 code_length;
+	uint8 code[code_length];
+	uint16 exception_table_length;
+	{       
+	    uint16 start_pc;
+	    uint16 end_pc;
+	    uint16 handler_pc;
+	    uint16 catch_type : ClassFile.clazz(catch_type) || catch_type == 0;
+	} exception_table[exception_table_length];
+	uint16 attributes_count;
+	AttributeInfo attributes[attributes_count];
+    } code
+    : code.attribute_length == sizeof(code) - 6;
+
+    Exceptions_attribute {
+	uint16 attribute_name_index :
+	    ClassFile.compare_utf8(attribute_name_index, "Exceptions");
+	uint32 attribute_length ; // : attribute_length == sizeof(this) - 6;
+	uint16 number_of_exceptions;
+	uint16 exception_index_table[number_of_exceptions] /* :
+	    exception_index_table[_] == 0 || 
+	    ClassFile.clazz(exception_index_table[_]) */;
+    } exceptions;
+
+    LineNumberTable_attribute {
+	uint16 attribute_name_index :
+	    ClassFile.compare_utf8(attribute_name_index, "LineNumberTable");
+	uint32 attribute_length;
+	uint16 line_number_table_length;
+	{  
+	    uint16 start_pc 	: start_pc < Code_attribute.code_length;
+	    uint16 line_number;
+	} line_number_table[line_number_table_length];
+    } line_number_table 
+    : line_number_table.attribute_length == sizeof(line_number_table) - 6;
+
+    LocalVariableTable_attribute {
+	uint16 attribute_name_index :
+	    ClassFile.compare_utf8(attribute_name_index, "LocalVariableTable");
+	uint32 attribute_length; 
+	uint16 local_variable_table_length;
+	{  
+	    uint16 start_pc 		: start_pc < Code_attribute.code_length;      
+	    uint16 length 		: start_pc + length <= Code_attribute.code_length;
+	    uint16 name_index		: ClassFile.utf8(name_index);
+	    uint16 descriptor_index	: ClassFile.utf8(descriptor_index);
+	    uint16 index		: index < Code_attribute.max_locals;
+	} local_variable_table[local_variable_table_length];
+    } local_variable_table
+    : local_variable_table.attribute_length == sizeof(local_variable_table) - 6;
+
+    {
+	// unknown attributes must be tolerated
+	uint16 attribute_name_index	: ClassFile.utf8(attribute_name_index);
+	uint32 attribute_length;
+	uint8 info[attribute_length];
+    } unknown;
+};

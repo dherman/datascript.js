@@ -1,0 +1,33 @@
+{
+  "name": "datascript.js",
+  "description": "The DataScript language",
+  "main": "lib/datascript.js",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=0.8.6"
+  },
+  "author": "Dave Herman",
+  "license": "MIT",
+  "dependencies": {
+  },
+  "devDependencies": {
+    "grunt": "~0.4.1",
+    "grunt-peg": "0.3.0",
+    "pegjs": "0.7.0"
+  },
+  "directories": {
+    "lib": "./lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/dherman/datascript.js.git"
+  },
+  "scripts": {
+    "prepublish": "grunt"
+  },
+  "keywords": [
+    "javascript",
+    "DataScript",
+    "binary data"
+  ]
+}
