@@ -8,12 +8,13 @@
   },
   "author": "Dave Herman",
   "license": "MIT",
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
     "grunt": "~0.4.1",
     "grunt-peg": "0.3.0",
-    "pegjs": "0.7.0"
+    "nodeunit": "~0.8.1",
+    "pegjs": "0.7.0",
+    "grunt-contrib-nodeunit": "~0.2.0"
   },
   "directories": {
     "lib": "./lib"
