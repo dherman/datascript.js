@@ -43,7 +43,7 @@ e_shoff:
   } hdrs[e_shnum];
 
   ElfSection(hdrs[s.index]) s[e_shnum];
-}
+};
 ```
 
 ## Status
