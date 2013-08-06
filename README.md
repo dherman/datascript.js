@@ -6,7 +6,7 @@ a declarative language for implementing binary data formats.
 Initially I will focus on decoders, but I'd like to be able to use the same
 language for encoding, too.
 
-An example:
+An example DataScript specification:
 
 ```
 Elf32_File {
@@ -44,7 +44,41 @@ e_shoff:
 
   ElfSection(hdrs[s.index]) s[e_shnum];
 };
+
+ElfSection(Elf32_File.Elf32_SectionHeader h) {
+Elf32_File:: h.sh_offset:
+  union {
+    { } null : h.sh_type == SHT_NULL;
+    StringTable(h) strtab : h.sh_type == SHT_STRTAB;
+    SymbolTable(h) symtab : h.sh_type == SHT_SYMTAB;
+    SymbolTable(h) dynsym : h.sh_type == SHT_DYNSYM;
+    RelocationTable(h) rel : h.sh_type == SHT_REL;
+    // ...
+  } section;
+};
+
+SymbolTable(Elf32_File.Elf32_SectionHeader h) {
+  Elf32_Sym {
+    uint32 st_name;
+    uint32 st_value;
+    uint32 st_size;
+    uint8  st_info;
+    uint8  st_other;
+    uint16 st_shndx;
+  } entry[h.sh_size / sizeof Elf32_Sym];
+};
 ```
+
+After compiling the above specification to a JavaScript module, using it
+looks like this:
+
+```javascript
+var Elf = require('elf');
+
+var file = new Elf(buffer, 0);
+console.log("0x" + file.e_ident.magic.toString(16)); // 0x7f454c46
+```
+
 
 ## Status
 
